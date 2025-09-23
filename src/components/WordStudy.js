@@ -134,12 +134,6 @@ const WordStudy = ({ words, selectedDays, onBack }) => {
     }
   };
 
-  const previousWord = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
-      setShowMeaning(false);
-    }
-  };
 
 
   const swipeHandlers = useSwipeable({

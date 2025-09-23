@@ -58,17 +58,19 @@ export const parseOlympicWords = (text) => {
     const line = lines[i].trim();
     
     if (line && line !== '') {
-      // 단어와 뜻 파싱
-      const parts = line.split(' ');
-      if (parts.length >= 2) {
-        const word = parts[0];
-        const meaning = parts.slice(1).join(' ');
-        words.push({
-          word,
-          meaning,
-          id: `olympic_${i + 1}`,
-          dayNumber: 'olympic'
-        });
+      // 단어와 뜻 파싱 (| 구분자 사용)
+      const pipeIndex = line.indexOf('|');
+      if (pipeIndex !== -1) {
+        const word = line.substring(0, pipeIndex).trim();
+        const meaning = line.substring(pipeIndex + 1).trim();
+        if (word && meaning) {
+          words.push({
+            word,
+            meaning,
+            id: `olympic_${i + 1}`,
+            dayNumber: 'olympic'
+          });
+        }
       }
     }
   }
