@@ -12,15 +12,6 @@ const WordStudy = ({ words, selectedDays, onBack }) => {
   const [unknownWords, setUnknownWords] = useState([]);
   const [isReviewMode, setIsReviewMode] = useState(false);
   const [isStarred, setIsStarred] = useState(false);
-
-  useEffect(() => {
-    // 단어들을 랜덤하게 섞기
-    const shuffled = shuffleArray([...words]);
-    setShuffledWords(shuffled);
-    setCurrentIndex(0);
-    setShowMeaning(false);
-    setStudyComplete(false);
-  }, [words]);
   
   const currentWord = shuffledWords[currentIndex];
   // 현재 단어의 별표 상태 확인
@@ -33,6 +24,59 @@ const WordStudy = ({ words, selectedDays, onBack }) => {
     };
     checkStarredStatus();
   }, [currentWord]);
+  useEffect(() => {
+    // 단어들을 랜덤하게 섞기
+    const shuffled = shuffleArray([...words]);
+    setShuffledWords(shuffled);
+    setCurrentIndex(0);
+    setShowMeaning(false);
+    setStudyComplete(false);
+  }, [words]);
+
+  // 키보드 이벤트 핸들러
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      // ESC 키로 뒤로가기
+      if (event.key === 'Escape') {
+        onBack();
+        return;
+      }
+
+      // 스페이스바로 별표 토글
+      if (event.key === ' ') {
+        event.preventDefault();
+        handleStarToggle();
+        return;
+      }
+
+      // 화살표 키 처리
+      switch (event.key) {
+        case 'ArrowDown':
+          event.preventDefault();
+          handleSwipeDown();
+          break;
+        case 'ArrowLeft':
+          event.preventDefault();
+          handleSwipeLeft();
+          break;
+        case 'ArrowRight':
+          event.preventDefault();
+          handleSwipeRight();
+          break;
+        default:
+          break;
+      }
+    };
+
+    // 키보드 이벤트 리스너 등록
+    window.addEventListener('keydown', handleKeyDown);
+
+    // 컴포넌트 언마운트 시 이벤트 리스너 제거
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showMeaning, currentWord, isStarred]); // 의존성 배열에 필요한 상태들 추가
+  
 
   const progress = ((currentIndex + 1) / shuffledWords.length) * 100;
 
@@ -225,14 +269,15 @@ const WordStudy = ({ words, selectedDays, onBack }) => {
           )}
         </div>
 
-        {/* 스와이프 안내 */}
+        {/* 스와이프/키보드 안내 */}
         <div className="swipe-instructions">
           <div className="instruction-text">
             {!showMeaning ? (
-              <>↓ 아래로 스와이프하여 뜻 보기</>
+              <>↓ 아래로 스와이프 또는 ↓ 키로 뜻 보기</>
             ) : (
               <>
                 ← 모르는 단어 | → 아는 단어
+                <div className="keyboard-hint">키보드: ← 모름 | → 앎 | 스페이스 별표 | ESC 뒤로</div>
                 {isReviewMode && <div className="review-hint">복습 중: 모르는 단어만 다시 학습</div>}
               </>
             )}

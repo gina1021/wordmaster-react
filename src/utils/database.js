@@ -1,12 +1,22 @@
-// IndexedDB를 사용한 간단한 데이터베이스
-const DB_NAME = 'WomaDatabase';
+// IndexedDB를 사용한 사용자별 데이터베이스
 const DB_VERSION = 1;
 const STORE_NAME = 'wordStatus';
 
 let db = null;
 
+// 사용자별 데이터베이스 이름 생성
+const getDatabaseName = (userId) => {
+  return `WomaDatabase_${userId}`;
+};
+
 // 데이터베이스 초기화
-export const initDatabase = async () => {
+export const initDatabase = async (userId) => {
+  if (!userId) {
+    throw new Error('사용자 ID가 필요합니다.');
+  }
+  
+  const DB_NAME = getDatabaseName(userId);
+  
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     

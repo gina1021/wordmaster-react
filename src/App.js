@@ -3,8 +3,11 @@ import './App.css';
 import WordStudy from './components/WordStudy';
 import DaySelector from './components/DaySelector';
 import Statistics from './components/Statistics';
+import CreateUserId from './components/CreateUserId';
+import LogoutModal from './components/LogoutModal';
 import { initDatabase, getStarredWords } from './utils/database';
 import { parseWordList, parseOlympicWords } from './utils/wordParser';
+import { getCookie, deleteCookie, validateUserId, updateUserLoginTime, cleanupInactiveUsers } from './utils/cookieManager';
 
 function App() {
   const [currentView, setCurrentView] = useState('home'); // 'home', 'study', 'statistics'
@@ -13,34 +16,61 @@ function App() {
   const [days, setDays] = useState([]);
   const [olympicWords, setOlympicWords] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [userId, setUserId] = useState(null);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   useEffect(() => {
-    const loadData = async () => {
+    const initializeApp = async () => {
       try {
-        // 데이터베이스 초기화
-        await initDatabase();
+        // 비활성 사용자 정리 (앱 시작 시마다 실행)
+        cleanupInactiveUsers();
         
-        // 단어 리스트 로드
-        const response = await fetch('/list.txt');
-        const wordListText = await response.text();
-        const parsedDays = parseWordList(wordListText);
-        setDays(parsedDays);
+        // 쿠키에서 사용자 ID 확인
+        const cookieUserId = getCookie('id');
         
-        // 수특 단어 리스트 로드
-        const olympicResponse = await fetch('/olym.txt');
-        const olympicText = await olympicResponse.text();
-        const parsedOlympicWords = parseOlympicWords(olympicText);
-        setOlympicWords(parsedOlympicWords);
+        if (!cookieUserId || !validateUserId(cookieUserId)) {
+          // 유효한 ID가 없으면 ID 생성 화면으로
+          setIsLoading(false);
+          return;
+        }
         
-        setIsLoading(false);
+        // 유효한 ID가 있으면 사용자 설정 및 데이터 로드
+        setUserId(cookieUserId);
+        updateUserLoginTime(cookieUserId); // 로그인 시간 업데이트
+        await loadUserData(cookieUserId);
+        
       } catch (error) {
-        console.error('데이터 로딩 중 오류:', error);
+        console.error('앱 초기화 중 오류:', error);
         setIsLoading(false);
       }
     };
 
-    loadData();
+    initializeApp();
   }, []);
+
+  const loadUserData = async (user) => {
+    try {
+      // 사용자별 데이터베이스 초기화
+      await initDatabase(user);
+      
+      // 단어 리스트 로드
+      const response = await fetch('/list.txt');
+      const wordListText = await response.text();
+      const parsedDays = parseWordList(wordListText);
+      setDays(parsedDays);
+      
+      // 수특 단어 리스트 로드
+      const olympicResponse = await fetch('/olym.txt');
+      const olympicText = await olympicResponse.text();
+      const parsedOlympicWords = parseOlympicWords(olympicText);
+      setOlympicWords(parsedOlympicWords);
+      
+      setIsLoading(false);
+    } catch (error) {
+      console.error('사용자 데이터 로딩 중 오류:', error);
+      setIsLoading(false);
+    }
+  };
 
   const handleStartStudy = (selectedDayNumbersOrWords, type) => {
     if (Array.isArray(selectedDayNumbersOrWords) && selectedDayNumbersOrWords.length > 0 && selectedDayNumbersOrWords[0].word) {
@@ -96,6 +126,31 @@ function App() {
     handleStartStudy(olympicWords, '수특 단어');
   };
 
+  const handleUserIdCreated = async (newUserId) => {
+    setUserId(newUserId);
+    await loadUserData(newUserId);
+  };
+
+  const handleLogout = () => {
+    setShowLogoutModal(true);
+  };
+
+  const confirmLogout = () => {
+    deleteCookie('id');
+    setUserId(null);
+    setShowLogoutModal(false);
+    setCurrentView('home');
+    setSelectedDays([]);
+    setWords([]);
+    setDays([]);
+    setOlympicWords([]);
+    setIsLoading(false); // ID 생성 화면으로 바로 이동
+  };
+
+  const cancelLogout = () => {
+    setShowLogoutModal(false);
+  };
+
   if (isLoading) {
     return (
       <div className="app">
@@ -107,13 +162,35 @@ function App() {
     );
   }
 
+  // ID가 없으면 ID 생성 화면 표시
+  if (!userId) {
+    return (
+      <div className="app">
+        <CreateUserId onUserIdCreated={handleUserIdCreated} />
+      </div>
+    );
+  }
+
   return (
     <div className="app">
       {currentView === 'home' && (
         <div className="home">
           <header className="app-header">
-            <h1>📚 WOMA 단어장</h1>
-            <p>모바일 단어 학습 앱</p>
+            <div className="header-content">
+              <div className="header-title">
+                <h1>📚 WOMA 단어장</h1>
+                <p>모바일 단어 학습 앱</p>
+              </div>
+              <div className="user-info">
+                <button 
+                  className="user-id-btn"
+                  onClick={handleLogout}
+                  title="로그아웃"
+                >
+                  👤 {userId}
+                </button>
+              </div>
+            </div>
           </header>
           
           <div className="home-content">
@@ -155,6 +232,13 @@ function App() {
           onStudyWords={handleStartStudy}
         />
       )}
+      
+      {/* 로그아웃 확인 모달 */}
+      <LogoutModal 
+        isOpen={showLogoutModal}
+        onConfirm={confirmLogout}
+        onCancel={cancelLogout}
+      />
     </div>
   );
 }
